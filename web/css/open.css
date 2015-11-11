@@ -1,0 +1,412 @@
+/*
+To change this license header, choose License Headers in Project Properties.
+To change this template file, choose Tools | Templates
+and open the template in the editor.
+*/
+/*
+    Created on : Mar 17, 2015, 2:52:33 PM
+    Author     : Connie
+*/
+
+
+
+@font-face {
+    font-family: Roboto;
+    src : url(fonts/roboto.woff);
+}
+
+.btn {
+    background-color : #1d8be8;
+    color : white;
+}
+
+.info_badge {
+  text-align: center;
+  padding : 5px;
+  background-color: #1d8be8;
+  color: white;
+  font-size: 20px;
+  border-top-left-radius: 5px;
+  border-bottom-left-radius: 5px;
+}
+
+.search {
+    background-color: rgb(29, 139, 232);
+    border-bottom-right-radius: 10px;
+    border-top-right-radius: 10px;
+    border : 0;
+}
+
+#help_icon_always {
+    top: 85px;
+    position: absolute;
+    left: 88%;
+    background-color: #1d8be8;
+    border-radius: 100px;
+    cursor: pointer;
+}
+
+h4 {
+    color: #1d8be8;
+}
+
+body {
+    font-family: Roboto;
+    padding: 5px;
+}
+
+.summary {
+    font-weight : bold;
+    font-size: 16px;
+}
+
+.summary span {
+    margin: 20px;
+}
+
+.amount_area {
+    font-size: 20px;
+    font-weight: bold;
+    margin-top: 50px;
+}
+
+#paginate_card img {
+    margin : 10px;
+}
+
+#paginate_button_area img {
+    cursor: pointer;
+}
+
+.paginate_round_icon {
+    border-radius: 100px;
+    background-color: lightblue;
+}
+
+.paginate_navigate {
+    
+}
+
+.paginate_navigate img {
+    border-radius: 50px;
+    background-color: lightblue;
+    cursor: pointer;
+}
+
+#sale_area {
+    margin-top : 20px;
+}
+
+#search_link {
+    cursor: pointer;
+    background-color: #1d8be8;
+}
+
+
+.dropdown-menu {
+    padding : 5px;
+    font-size: 20px;
+    width : 90%;
+}
+
+.error {
+    color : red;
+    margin: 5px;
+    font-size : 16px;
+}
+
+#error_space_login {
+    margin-top : 10px;
+}
+
+#error_space_admin {
+    margin-top : 10px;
+}
+
+
+
+
+.menu {
+    background : rgba(240, 248, 255, 1);
+    z-index: 1000;
+    width: 100%;
+    padding: 10px;
+}
+
+@media only screen and (min-width : 320px) {
+    .menu a{
+        text-decoration: none;
+        font-family: Roboto;
+        padding: 3px;
+        margin: 3px;
+        font-size: 12px;
+    }
+
+}
+
+@media only screen and (min-width : 1024px) {
+    .menu a{
+        text-decoration: none;
+        font-family: Roboto;
+        padding: 10px;
+        margin: 15px;
+        font-size: 20px;
+    }
+}
+
+
+
+
+.menu a:hover {
+    background: lightblue;
+    color: white;
+}
+
+.card {
+    border : 1px solid lightblue;
+    margin : auto;
+    margin-bottom : 10px;
+    background: white;
+    display : block;
+    overflow: auto;
+}
+
+
+.card .input-group img {
+    width : 20px;
+}
+
+
+#content_area {
+    margin-top : 60px;
+}
+
+
+
+.button_area input {
+    margin : 5px;
+}
+
+.sigin {
+    float : right;
+}
+
+label {
+    margin-top : 10px;
+    margin-bottom : 10px;
+}
+
+input[type="text"],input[type="number"],input[type="password"],input[type="email"],select {
+    height: 40px;
+    font-size: 18px;
+}
+
+
+
+
+
+select {
+    width: 100%;
+    padding: 5px;
+    border-radius: 3px;
+    height: 40px;
+}
+
+form {
+    max-width: 500px;
+    border : 1px solid lightblue;
+    margin : auto;
+    padding: 20px;
+    border-radius: 5px;
+    background: white;
+    
+}
+
+.logo {
+    width: 100px;
+    margin-top: 20px;
+}
+
+#logo_cont {
+    text-align: center;
+    margin-top: 20px;
+}
+
+#logo_cont img{
+    width:100px;
+}
+
+#logo_cont_main img {
+    width:100px;
+}
+
+.long_link {
+    background-color: rgb(29, 139, 232);
+    padding: 12px;
+    border-bottom: 1px solid lightblue;
+    cursor: pointer;
+    border-radius: 2px;
+    font-size: 16px;
+    color:white;
+}
+
+.long_link:hover {
+    background-color: rgb(135, 206, 235);
+}
+
+
+
+
+
+
+
+.panel-heading .accordion-toggle:after {
+    /* symbol for "opening" panels */
+    font-family: 'Glyphicons Halflings';  /* essential for enabling glyphicon */
+    content: "\e114";    /* adjust as needed, taken from bootstrap.css */
+    float: right;        /* adjust as needed */
+    color: grey;         /* adjust as needed */
+}
+.panel-heading .accordion-toggle.collapsed:after {
+    /* symbol for "collapsed" panels */
+    content: "\e080";    /* adjust as needed, taken from bootstrap.css */
+}
+
+#ui-datepicker-div {
+    z-index : 10000 !important;
+}
+
+
+.keypad {
+    
+}
+
+.key {
+  padding: 15px;
+  border: 1px solid lightblue;
+  width: 150px;
+  text-align: center;
+  font-size: 40px;
+  cursor: pointer;
+  -webkit-user-select: none;
+}
+
+.key:hover {
+    background: lightblue;
+    color : white;
+}
+
+.signin_touch {
+    font-size: 24px;
+    background: lightblue;
+    float : right;
+    border-radius: 5px;
+    padding : 8px;
+    margin : 5px;
+}
+
+.signin_touch a {
+    color : white;
+    text-decoration: none;
+}
+
+.category_touch {
+  line-height: 3.5;
+  padding-left: 30px;
+  padding-right: 30px;
+  border-radius: 0px;
+  margin: 10px;
+  display : block;
+  background-color : rgb(0, 170, 154) !important;
+  color : white !important;
+}
+
+
+.card_touch {
+    border: 1px solid rgb(173, 216, 230);
+  padding: 5px;
+  border-radius: 0px;
+  background: rgb(255, 255, 255);
+}
+
+.btn_touch {
+  padding: 10px;
+  font-size: 16px;
+  border-radius: 0px;
+}
+
+
+
+.table-striped>tbody>tr:nth-of-type(odd) {
+   cursor: pointer;
+}
+
+.table-striped>tbody>tr:nth-of-type(even) {
+   background-color: rgba(173, 216, 230, 0.2);
+   cursor: pointer;
+}
+.table-striped>tbody>tr:hover {
+   background-color: #1d8be8;
+   color : white;
+}
+
+.table-striped>tbody>tr>td {
+    -webkit-user-select: none;
+}
+.table-striped>tbody>tr>th {
+    -webkit-user-select: none;
+}
+
+.change_touch {
+   font-size: 24px;
+   border: 2px solid rgb(173, 216, 230);
+}
+
+#menu_card a {
+  margin-right: 20px;  
+}
+
+#product_categories_display{
+      padding: 10px;
+  border: 1px solid rgb(173, 216, 230);
+  margin-top: 10px;
+}
+
+.modal-content {
+    border-radius: 0px;
+}
+
+.handsontableInput {
+    width: auto !important;
+}
+
+.dropdown-menu li {
+  font-size : 30px;
+}
+
+.toggle-button {
+    padding-left: 20px;
+    padding-right: 20px;
+    padding-top: 5px;
+    padding-bottom: 5px;
+    color: rgb(255, 255, 255);
+    font-size: 20px;
+    cursor: pointer;
+    -webkit-user-select: none;
+}
+
+#main_view {
+    padding : 10px;
+}
+
+#state_icon {
+    background: rgb(173, 216, 230);
+    margin-bottom: 10px;
+    padding : 5px;
+}
+
+.close_div {
+    border: 1px solid rgb(211, 211, 211);
+    padding: 5px;
+    margin-top: 5px;
+}

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<!--
+To change this license header, choose License Headers in Project Properties.
+To change this template file, choose Tools | Templates
+and open the template in the editor.
+-->
+<html>
+    <head>
+        <title>Quest Open Data</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link href='css/bootstrap.min.css' rel='stylesheet' type='text/css'>
+        <link href='css/open.css' rel='stylesheet' type='text/css'>
+        
+        <script type="text/javascript" src="js/jquery-1.11.2.min.js"></script>
+        <script type="text/javascript" src="js/bootstrap.min.js"></script>
+        <script type="text/javascript" src="js/data.js"></script>
+        <script type="text/javascript" src="js/ui.js"></script>
+        <script type="text/javascript" src="js/app.js"></script>
+    </head>
+    <body>
+         <form onsubmit="app.login();return false;" class="card">
+            <h2>Sign In</h2>
+            <br>
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" class="form-control" id="username" placeholder="Username">
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" class="form-control" id="password" placeholder="Password">
+                <div id="load_area" class="error" ></div>
+            </div>
+           
+            <button type="submit" class="btn btn-info">Sign in</button>
+            <br><br>
+            <a href="change.html">Change Password</a>
+            <div id="logo_cont">
+                <img src="img/quest-pico.png" alt="logo">
+            </div>
+        </form>
+    </body>
+</html>

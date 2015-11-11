@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<!--
+To change this license header, choose License Headers in Project Properties.
+To change this template file, choose Tools | Templates
+and open the template in the editor.
+-->
+<html>
+    <head>
+    <title>Change Password</title>
+    <link rel='shortcut icon' type='image/x-icon' href='img/favicon.png' />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <meta name="description" content="quest pico" />   
+     <link href='css/bootstrap.min.css' rel='stylesheet' type='text/css'>
+      <link href='css/open.css' rel='stylesheet' type='text/css'>
+        
+        <script type="text/javascript" src="js/jquery-1.11.2.min.js"></script>
+        <script type="text/javascript" src="js/bootstrap.min.js"></script>
+        <script type="text/javascript" src="js/data.js"></script>
+        <script type="text/javascript" src="js/ui.js"></script>
+        <script type="text/javascript" src="js/app.js"></script>
+    </head>
+    
+    <body>
+        <form onsubmit="app.changePassword();return false;" class="card">
+            <h3>Change Password</h3>
+            <div class="form-group">
+                <label for="user_name">Username</label>
+                <input type="text" class="form-control" id="user_name" placeholder="Username">
+            </div>
+            <div class="form-group">
+                <label for="old_password">Old Password</label>
+                <input type="password" class="form-control" id="old_password" placeholder="Old Password">
+            </div>
+            <div class="form-group">
+                <label for="new_password">New Password</label>
+                <input type="password" class="form-control" id="new_password" placeholder="New Password">
+            </div>
+            <div class="form-group">
+                <label for="confirm_password">Confirm Password</label>
+                <input type="password" class="form-control" id="confirm_password" placeholder="Confirm Password">
+            </div>
+            <div id="load_area" class="error" ></div>
+            <button type="submit" class="btn btn-info">Change Password</button>
+            <div id="logo_cont">
+                <img src="img/quest-pico.png" alt="logo">
+            </div>
+        </form>
+    </body>
+</html>
