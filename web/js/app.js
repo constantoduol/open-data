@@ -113,7 +113,12 @@ App.prototype.xhr = function(options){
     request.request_object = options.data;
     
     if(options.load){
-        $("#load_area").html("<img src='img/loader.gif'>");
+        if(options.load_area){
+            $("#"+options.load_area).html("<img src='img/loader.gif'>");
+        }
+        else {
+            $("#load_area").html("<img src='img/loader.gif'>");
+        }
     }
     var defaultOptions = {
         method : "post",
@@ -121,7 +126,12 @@ App.prototype.xhr = function(options){
         data: "json=" + encodeURIComponent(JSON.stringify(request)),
         dataFilter : function(data){
             if (options.load) {
-                $("#load_area").html("");
+                if (options.load_area) {
+                    $("#" + options.load_area).html("");
+                }
+                else {
+                    $("#load_area").html("");
+                }
             }
            var json = JSON.parse(data);
            if(json.request_msg === "auth_required"){
@@ -429,7 +439,7 @@ App.prototype.explodeTable = function(kind,fakeName){
     });
 };
 
-App.prototype.initLoadGrid = function(r,kind,fakeName){
+App.prototype.initLoadGrid = function(r,kind,fakeName,joined){
     var headers = [];
     var values = [];
     $.each(r, function (col) {
@@ -438,12 +448,14 @@ App.prototype.initLoadGrid = function(r,kind,fakeName){
         headers.push(col);
         values.push(r[col]);
     });
-    headers.push("Delete Row");
-    values.push([]);
-    $.each(r.ID___, function (index) {
-        var id = r.ID___[index];
-        values[values.length - 1][index] = "<a href='#' onclick='app.deleteRow(\"" + id + "\",\"" + kind + "\",\"" + fakeName + "\")'>Delete</a>";
-    }); 
+    if(!joined){
+        headers.push("Delete Row");
+        values.push([]);
+        $.each(r.ID___, function (index) {
+            var id = r.ID___[index];
+            values[values.length - 1][index] = "<a href='#' onclick='app.deleteRow(\"" + id + "\",\"" + kind + "\",\"" + fakeName + "\")'>Delete</a>";
+        }); 
+    }   
     return [headers,values];
 };
 
@@ -518,7 +530,7 @@ App.prototype.newGrid = function (options) {
 
 };
 
-App.prototype.loadGrid = function(ids, columns, headers, values,fakeName,realName){
+App.prototype.loadGrid = function(ids, columns, headers, values,fakeName,realName,joined){
     var id = "handson_" + Math.floor(Math.random() * 1000000);
     var div = $("<div id='" + id + "'></div>");
     $("#main_view").append(div);
@@ -543,6 +555,7 @@ App.prototype.loadGrid = function(ids, columns, headers, values,fakeName,realNam
         },
         onEdit: function (row, col, oldValue, newValue) {
             //do a delayed save
+            if(joined) return;
             app.runLater(1000, function () {
                 var request = {
                     id: ids[row],
@@ -579,9 +592,286 @@ App.prototype.loadGrid = function(ids, columns, headers, values,fakeName,realNam
 
 App.prototype.gridEdit = function (ids, columns, headers, values,fakeName,realName) {
     $("#main_view").html("<div id='state_icon'>"+realName+"</div>\n\
-        <input type='text' class='form-control' id='search_query' style='margin-bottom:5px' placeholder='e.g name = sam and age = 20'>\n\
-        <input type='button' class='btn btn-info' value='Search' onclick='app.search(\""+realName+"\",\""+fakeName+"\")' style='margin-bottom:5px;'><hr>");//empty the area
+        <textarea cols=1 rows=2 class='form-control' id='search_query' style='margin-bottom:5px' placeholder='e.g name = sam and age = 20'></textarea>\n\
+        <input type='button' class='btn btn-info' value='Search' id='search_button' onclick='app.search(\""+realName+"\",\""+fakeName+"\")' style='margin-bottom:5px;'>\n\
+        <input type='button' class='btn btn-info' value='Save Query' onclick='app.saveQuery()' style='margin-bottom:5px;'>\n\
+        <input type='button' class='btn btn-info' value='Retrieve Query' onclick='app.retrieveQuery()' style='margin-bottom:5px;'>\n\
+        <input type='button' class='btn btn-info' value='Visual Query' onclick='app.visualQuery()' style='margin-bottom:5px;'>\n\
+        <hr>");//empty the area
     app.loadGrid(ids, columns, headers, values,fakeName,realName);
+};
+
+App.prototype.visualQuery = function(){
+    var m = app.ui.modal("<div id='visual_area' style='overflow:auto'></div>", "Visual Query", {
+        okText : "Search",
+        cancelText : "Cancel",
+        ok : function(){
+            app.buildVisualQuery(m);
+        }
+    });
+    var html = "<input type = 'button' class='btn' value='Add Property' id='add_prop' style='margin-right:5px'>\n\
+                <input type = 'button' class='btn' value='Add Kind' id='add_kind'>\n\
+                <input type = 'button' class='btn' value='Add Join Property' id='add_j_prop'>\n\
+                <div id='property_builder' style='padding:5px'></div>";
+    $("#visual_area").html(html);
+    $("#add_prop").click(function(){
+        var input = "<div style='display:flex'>\n\
+                    <input type='text' class='form-control prop_name' style ='width:45%;margin:5px' placeholder='Property name'>\n\
+                    <input type='text' class='form-control prop_value' style='width:45%;margin:5px' placeholder='Property value'><div>";
+        $("#property_builder").append(input);
+    });
+    $("#add_kind").click(function () {
+        var input = "<div style='display:flex;'> <input type='text' class='form-control kind_name' style ='width:45%;margin:5px' placeholder='e.g kind1'>\n\
+                    <input type='text' class='form-control kind_value' style='width:45%;margin:5px' placeholder='e.g Person'><div>";
+        $("#property_builder").append(input);
+    });
+    $("#add_j_prop").click(function () {
+        var input = "<div style='display:flex;'> <input type='text' class='form-control j_prop_name' style ='width:45%;margin:5px' placeholder='e.g join_prop1'>\n\
+                    <input type='text' class='form-control j_prop_value' style='width:45%;margin:5px' placeholder='e.g ID_NUMBER'><div>";
+        $("#property_builder").append(input);
+    });
+    var height = app.getDim()[1] -220;
+    $("#visual_area").css("height",height+"px");
+    app.buildStringQuery();
+};
+
+App.prototype.buildStringQuery = function(){
+    var query = $("#search_query").val();
+    if(query.length === 0) return;
+    if(query.startsWith("join:")){
+        //select the appropriate option
+        var index = query.indexOf(":") + 1;
+        query = query.substring(index, query.length);
+        var splitQuery = query.split("and");
+        for (var x = 0; x < splitQuery.length; x++) {
+            var subQuery = splitQuery[x].split("=");
+            var propName = subQuery[0].trim();
+            var propValue = subQuery[1].trim();;
+            if(propName.indexOf("kind") > -1){
+                //this is a kind
+                $("#add_kind").click();
+                var kn = $(".kind_name");
+                var kv = $(".kind_value");
+                kn[kn.length - 1].value = propName;
+                kv[kv.length - 1].value = propValue;
+            }
+            else if(propName.indexOf("join_prop") > -1){
+                //this is a join property
+                $("#add_j_prop").click();
+                var jpn = $(".j_prop_name");
+                var jpv = $(".j_prop_value");
+                jpn[jpn.length - 1].value = propName;
+                jpv[jpv.length - 1].value = propValue;
+            }
+            else if(propName.indexOf("where") > -1){
+                //this is a where property
+                $("#add_prop").click();
+                var pn = $(".prop_name");
+                var pv = $(".prop_value");
+                pn[pn.length - 1].value = propName;
+                pv[pv.length - 1].value = propValue;
+            }
+        }
+    }
+    else {
+        var splitQuery = query.split("and");
+        for (var x = 0; x < splitQuery.length; x++) {
+            var subQuery = splitQuery[x].split("=");
+            var propName = subQuery[0].trim();
+            var propValue = subQuery[1].trim();
+            //this is a where property
+            $("#add_prop").click();
+            var pn = $(".prop_name");
+            var pv = $(".prop_value");
+            pn[pn.length - 1].value = propName;
+            pv[pv.length - 1].value = propValue;
+        }
+    }
+};
+
+App.prototype.buildVisualQuery = function(m){
+    //we build the query depending on the type
+    //get all kinds first, if its a join
+    var propNames = $(".prop_name");
+    var propValues = $(".prop_value");
+    var jPropNames = $(".j_prop_name");
+    var jPropValues = $(".j_prop_value");
+    var kindNames = $(".kind_name");
+    var kindValues = $(".kind_value");
+    var qString = "";
+    var type = jPropNames.length > 0 ? "join" : "normal";
+    if(type === "join"){
+        qString += "join:";
+        for(var y = 0; y < kindNames.length; y++){
+            var kindN = kindNames[y].value;
+            var kindV = kindValues[y].value;
+            if (!kindN) {
+                $(kindNames[y]).focus();
+                return;
+            }
+            if (!kindV) {
+                $(kindValues[y]).focus();
+                return;
+            }
+            qString = qString + kindN + " = " + kindV + " and ";
+        }
+        
+        for (var y = 0; y < jPropNames.length; y++) {
+            var jPropName = jPropNames[y].value;
+            var jPropValue = jPropValues[y].value;
+            if (!jPropName) {
+                $(jPropNames[y]).focus();
+                return;
+            }
+            if (!jPropValue) {
+                $(jPropValues[y]).focus();
+                return;
+            }
+            qString = y === jPropNames.length - 1 ? qString + jPropName + " = " + jPropValue + "" : qString + jPropName + " = " + jPropValue + " and ";
+        }
+        for (var x = 0; x < propNames.length; x++) {
+            var name = propNames[x].value;
+            var value = propValues[x].value;
+            if (!name) {
+                $(propNames[x]).focus();
+                return;
+            }
+            if (!value) {
+                $(propValues[x]).focus();
+                return;
+            }
+            qString = x === propNames.length - 1 ? qString + name + " = " + value + "" : qString + name + " = " + value + " and ";
+        }
+    }
+    else if(type === "normal"){
+        for (var x = 0; x < propNames.length; x++) {
+            var name = propNames[x].value;
+            var value = propValues[x].value;
+            if (!name) {
+                $(propNames[x]).focus();
+                return;
+            }
+            if (!value) {
+                $(propValues[x]).focus();
+                return;
+            }
+            qString = x === propNames.length - 1 ? qString + name + " = " + value + "" : qString + name + " = " + value + " and ";
+        }
+    }
+    
+    m.modal('hide');
+    $("#search_query").val(qString);
+    $("#search_button").click();
+    
+};
+
+
+App.prototype.retrieveQuery = function(){
+    app.xhr({
+        data: {},
+        svc: "open_data_2",
+        msg: "retrieve_query",
+        load: true,
+        success: function (resp) {
+            var r = resp.response.data;
+            var m = app.ui.modal("<div id='query_area'></div>","User Queries",{
+                cancelText : "Cancel"
+            });
+            var q_name = $.extend(true, [], r.QUERY_NAME);
+            var q = $.extend(true, [], r.QUERY);
+            app.ui.table({
+                id_to_append: "query_area",
+                headers: ["Query Name" , "Delete"],
+                values: [r.QUERY_NAME,r.QUERY],
+                include_nums: true,
+                style: "",
+                mobile_collapse: true,
+                transform: {
+                    0: function (value,index) {
+                        var href = $("<a href='#'>"+value+"</a>");
+                        href.click(function(){
+                            var query = q[index];
+                            $("#search_query").val(query);
+                            m.modal('hide'); 
+                        });
+                        return href;
+                    },
+                    1: function (value,index) {
+                        var href = $("<a href='#'>Delete</a>");
+                        href.click(function(){
+                            var qName = q_name[index];
+                            app.deleteQuery(qName);
+                            m.modal('hide'); 
+                        });
+                        return href;
+                    }
+                }
+            });
+        }
+    });
+};
+
+App.prototype.deleteQuery = function(qName){
+    app.xhr({
+        data: {
+            query_name: qName
+        },
+        svc: "open_data_2",
+        msg: "delete_query",
+        load: true,
+        load_area: "q_load_area",
+        success: function (resp) {
+            var r = resp.response.data;
+            if (r === "success") {
+                app.msg("Search query deleted successfully");
+            }
+            else if (r === "fail") {
+                app.msg(resp.response.reason);
+            }
+        }
+    });
+};
+
+App.prototype.saveQuery = function(){
+    var query = $("#search_query").val();
+    if(!query){
+        app.msg("Nothing to save!");
+        $("#search_query").focus();
+        return;
+    }
+    var html = "<div id='q_load_area'></div><input type='text' class='form-control' id='query_name' placeholder='Query Name'>";
+    var m = app.ui.modal(html,"Save Query",{
+        okText : "Save",
+        cancelText : "Cancel",
+        ok : function(){
+            var name = $("#query_name").val();
+            if (!name) {
+                app.msg("Please enter a name for the query you want to save");
+                $("#query_name").focus();
+                return;
+            }
+            app.xhr({
+                data: {
+                    query: query,
+                    query_name : name
+                },
+                svc: "open_data_2",
+                msg: "save_query",
+                load: true,
+                load_area : "q_load_area",
+                success: function (resp) {
+                    var r = resp.response.data;
+                    if (r === "success") {
+                        app.msg("Search query saved successfully");
+                    }
+                    else if(r === "fail"){
+                        app.msg(resp.response.reason);
+                    }
+                }
+            });
+           m.modal('hide');
+        }
+    });
 };
 
 App.prototype.deleteRow = function(id,realName,fakeName){
@@ -608,11 +898,46 @@ App.prototype.deleteRow = function(id,realName,fakeName){
     });   
 };
 
+App.prototype.joinQuery = function(query){
+    var index = query.indexOf(":") + 1;
+    query = query.substring(index,query.length);
+    var splitQuery = query.split("and");
+    var request = {};
+    for(var x = 0; x < splitQuery.length; x++){
+        var subQuery = splitQuery[x].split("=");
+        var propName = subQuery[0].trim();
+        var propValue = subQuery[1].trim();
+        request[propName] = propValue;
+    }
+    app.xhr({
+        data: request,
+        svc: "open_data_2",
+        msg: "multi_join",
+        load: true,
+        success: function (resp) {
+            var r = resp.response.data;
+            if(r === "fail"){
+                app.msg(resp.response.reason);
+                return;
+            }
+            var data = app.initLoadGrid(r,"","",true);
+            var headers = data[0];
+            var values = data[1];
+            $(".handsontable").remove();
+            app.loadGrid(r.ID___, headers, headers, values, "", "Joined Data",true);
+        }
+    });
+};
+
 App.prototype.search = function(kind,fakeName){
     var query = $("#search_query").val();
     if(!query){
         app.msg("No query specified");
         $("search_query").focus();
+        return;
+    }
+    if(query.startsWith("join:")){
+        app.joinQuery(query);
         return;
     }
     var splitQuery = query.split("and");

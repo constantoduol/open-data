@@ -146,13 +146,10 @@ UI.prototype.table = function (options) {
         
         for (var y = 0; y < options.values.length; y++) {
             var td = $("<td>");
-                        
             //here we do transformations
-            if(options.transform){
-                if(options.transform[y]){
-                    //we have a transform function here so deal with it
-                    options.values[y][x] = options.transform[y](options.values[y][x],x);
-                }
+            if(options.transform && options.transform[y]){
+                //we have a transform function here so deal with it
+                options.values[y][x] = options.transform[y](options.values[y][x],x);
             }
             
             

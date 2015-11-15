@@ -244,4 +244,65 @@ public class OpenDataService2 implements Serviceable {
         os.delete(serv, worker);
     }
     
+    @Endpoint(name="save_query")
+    public void saveQuery(Server serv, ClientWorker worker){
+        JSONObject requestData = worker.getRequestData();
+        String username = worker.getSession().getAttribute("username").toString();
+        String apiKey = userNameToApiKey(username);
+        String query = requestData.optString("query");
+        String qName = requestData.optString("query_name");
+        Filter filter = new FilterPredicate("API_KEY", FilterOperator.EQUAL, apiKey);
+        Entity exists = Datastore.getSingleEntity(qName, filter);
+        if(exists != null){
+            worker.setReason("Specified Query name already exists");
+            serv.messageToClient(worker.setResponseData(Message.FAIL)); 
+            return;
+        }
+        Entity en = new Entity("USER_QUERY");
+        en.setProperty("API_KEY", apiKey);
+        en.setProperty("QUERY_NAME", qName);
+        en.setProperty("QUERY", query);
+        Datastore.insert(en);
+        serv.messageToClient(worker.setResponseData(Message.SUCCESS));
+    }
+    
+    
+    @Endpoint(name="retrieve_query")
+    public void retrieveQuery(Server serv, ClientWorker worker){
+        String username = worker.getSession().getAttribute("username").toString();
+        String apiKey = userNameToApiKey(username);
+        Filter filter = new FilterPredicate("API_KEY", FilterOperator.EQUAL, apiKey);
+        JSONObject json = Datastore.entityToJSON(Datastore.getMultipleEntities("USER_QUERY", filter));
+        serv.messageToClient(worker.setResponseData(json));
+    }
+    
+    @Endpoint(name = "delete_query")
+    public void deleteQuery(Server serv, ClientWorker worker) {
+        JSONObject requestData = worker.getRequestData();
+        String username = worker.getSession().getAttribute("username").toString();
+        String apiKey = userNameToApiKey(username);
+        String qName = requestData.optString("query_name");
+        Filter filter = new FilterPredicate("API_KEY", FilterOperator.EQUAL, apiKey);
+        Filter filter1 = new FilterPredicate("QUERY_NAME", FilterOperator.EQUAL, qName);
+        Datastore.deleteSingleEntity("USER_QUERY", filter,filter1);
+        serv.messageToClient(worker.setResponseData(Message.SUCCESS));
+    }
+    
+    @Endpoint(name = "multi_join")
+    public void multiJoin(Server serv, ClientWorker worker) throws JSONException {
+        try{
+            JSONObject requestData = worker.getRequestData();
+            String username = worker.getSession().getAttribute("username").toString();
+            String apiKey = userNameToApiKey(username);
+            requestData.put("api_key", apiKey);
+            OpenDataService os = new OpenDataService();
+            os.multiJoin(serv, worker);
+        }
+        catch(Exception e){
+            worker.setResponseData(Message.FAIL);
+            worker.setReason("Invalid join query specified");
+            serv.messageToClient(worker);
+        }
+    }
+    
 }

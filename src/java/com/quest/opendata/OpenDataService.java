@@ -11,6 +11,7 @@ import com.google.appengine.api.datastore.Query;
 import com.google.appengine.api.datastore.Query.Filter;
 import com.google.appengine.api.datastore.Query.FilterOperator;
 import com.google.appengine.api.datastore.Query.FilterPredicate;
+import com.google.appengine.api.datastore.Query.SortDirection;
 import com.quest.access.common.UniqueRandom;
 import com.quest.access.common.datastore.Datastore;
 import com.quest.access.common.io;
@@ -423,10 +424,66 @@ public class OpenDataService implements Serviceable {
         }
     }
     
+    @Endpoint(name="multi_join")
+    public void multiJoin(Server serv, ClientWorker worker){
+        JSONObject requestData = worker.getRequestData();
+        String apiKey = requestData.optString("api_key");
+        //kind1 = Driver, kind2 = Offenses, kind3 = 
+        //join_prop1 = ID_NO, join_prop2 = ID_NO
+        if (!checkAPIKey(apiKey, worker, serv)) return;
+        int count = 1; //we start from 1
+        ArrayList<String> joinProps = new ArrayList();
+        ArrayList<String> kinds = new ArrayList();
+        ArrayList<String> sortProps = new ArrayList();
+        ArrayList<SortDirection> dirs = new ArrayList();
+        while(true){
+            String kind = requestData.optString("kind"+count, null);
+            if(kind == null) break; //well no more kinds so just break
+            String joinProp = requestData.optString("join_prop"+count);
+            sortProps.add("TIMESTAMP___");
+            dirs.add(SortDirection.ASCENDING);
+            String fakeName = getEntityFakeName(kind, apiKey);
+            kinds.add(fakeName);
+            joinProps.add(joinProp);
+            count++;
+        }
+        ArrayList<ArrayList<Filter>> allFilters = new ArrayList();
+        for(int x = 1; x < kinds.size() + 1; x++){
+            Iterator<String> iter = requestData.keys();
+            ArrayList<Filter> kindFilter = new ArrayList();
+            while(iter.hasNext()){
+                String propName = iter.next();
+                String propValue = requestData.optString(propName);
+                String key = propName.substring(propName.indexOf("_") + 1);
+                Filter filter = new FilterPredicate(key, FilterOperator.EQUAL, propValue);
+                if(propName.startsWith("where"+x+"_")){
+                    io.out("key : "+key+" value : "+propValue);
+                    kindFilter.add(filter);
+                }
+            }
+            allFilters.add(kindFilter);
+            //where1_name, where1_age
+            //where2_type, where2_id
+        }
+        
+        Filter[][] filters = new Filter[allFilters.size()][];
+        for (int i = 0; i < allFilters.size(); i++) {
+            ArrayList<Filter> row = allFilters.get(i);
+            filters[i] = row.toArray(new Filter[row.size()]);
+        }
+        
+        String [] entityNames = kinds.toArray(new String[kinds.size()]);
+        String [] sProps = sortProps.toArray(new String[sortProps.size()]);
+        SortDirection [] sDirs = dirs.toArray(new SortDirection[dirs.size()]);
+       
+        String [] jProps = joinProps.toArray(new String[joinProps.size()]);
+        JSONObject json = Datastore.entityToJSON(Datastore.multiJoin(entityNames, jProps, sProps,sDirs, filters));
+        serv.messageToClient(worker.setResponseData(json));
+    }
     
     //this join only supports two way joins
-    @Endpoint(name="join")
-    public void join(Server serv, ClientWorker worker) throws IOException{
+    @Endpoint(name="two_way_join")
+    public void twoWayJoin(Server serv, ClientWorker worker) throws IOException{
         //join on two entities
         //where1_name=sam , where2_name=connie, kind1=Person, kind2=Driver
         JSONObject requestData = worker.getRequestData();
@@ -446,8 +503,8 @@ public class OpenDataService implements Serviceable {
         while (iter.hasNext()) {
             String propName = iter.next().toString();
             String propValue = requestData.optString(propName);
-             String key = propName.substring(propName.indexOf("_") + 1);
-             Filter filter = new FilterPredicate(key, FilterOperator.EQUAL, propValue);
+            String key = propName.substring(propName.indexOf("_") + 1);
+            Filter filter = new FilterPredicate(key, FilterOperator.EQUAL, propValue);
             if (propName.startsWith("where1_")) { //filters of the first entity
                 filters1.add(filter); //this is a 
             }
@@ -460,7 +517,9 @@ public class OpenDataService implements Serviceable {
         //filters2.add(filter);
         String [] entityNames = new String[]{fakeEntityName1,fakeEntityName2};
         String [] joinProps = new String[]{join1,join2};
-        List<Entity> list = Datastore.twoWayJoin(entityNames, joinProps, null, null, 
+        String [] sortProps = new String[]{"TIMESTAMP___","TIMESTAMP___"};
+        SortDirection [] dirs = new SortDirection[]{SortDirection.ASCENDING,SortDirection.ASCENDING};
+        List<Entity> list = Datastore.twoWayJoin(entityNames, joinProps, sortProps,dirs, 
                 filters1.toArray(new Filter[filters1.size()]), 
                 filters2.toArray(new Filter[filters2.size()]));
         if (view.equals("html")) {
