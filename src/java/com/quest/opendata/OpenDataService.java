@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.Comparator;
@@ -32,6 +33,7 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 /**
@@ -60,10 +62,11 @@ public class OpenDataService implements Serviceable {
 
     }
     
+    
     public static void main(String [] args){
-        DateFormat dateFormat = new SimpleDateFormat("HH:mm:ss");
-        Date date = new Date();
-        io.out(dateFormat.format(date));
+       int [] a = new int[]{1,2,3};
+      
+        
     }
 
     private void trackEntityStats(String [] names,String apiKey,String updateType,List propNames){
@@ -457,7 +460,6 @@ public class OpenDataService implements Serviceable {
                 String key = propName.substring(propName.indexOf("_") + 1);
                 Filter filter = new FilterPredicate(key, FilterOperator.EQUAL, propValue);
                 if(propName.startsWith("where"+x+"_")){
-                    io.out("key : "+key+" value : "+propValue);
                     kindFilter.add(filter);
                 }
             }
@@ -473,11 +475,11 @@ public class OpenDataService implements Serviceable {
         }
         
         String [] entityNames = kinds.toArray(new String[kinds.size()]);
-        String [] sProps = sortProps.toArray(new String[sortProps.size()]);
-        SortDirection [] sDirs = dirs.toArray(new SortDirection[dirs.size()]);
+        //String [] sProps = sortProps.toArray(new String[sortProps.size()]);
+        //SortDirection [] sDirs = dirs.toArray(new SortDirection[dirs.size()]);
        
         String [] jProps = joinProps.toArray(new String[joinProps.size()]);
-        JSONObject json = Datastore.entityToJSON(Datastore.multiJoin(entityNames, jProps, sProps,sDirs, filters));
+        JSONObject json = Datastore.entityToJSON(orderOnTimestamp(Datastore.multiJoin(entityNames, jProps, null,null, filters)));
         serv.messageToClient(worker.setResponseData(json));
     }
     
@@ -528,8 +530,49 @@ public class OpenDataService implements Serviceable {
         }
         JSONObject data = Datastore.entityToJSON(list);
         worker.setResponseData(data);
-        serv.messageToClient(worker);
+        serv.messageToClient(worker);   
+    }
+    
+    @Endpoint(name="save_2")
+    public void saveWithConditions(Server serv, ClientWorker worker){
+        JSONObject requestData = worker.getRequestData();
+        String apiKey = requestData.optString("api_key");
+        if (!checkAPIKey(apiKey, worker, serv)) return;
+        String kind = requestData.optString("kind");
+        JSONArray props = requestData.optJSONArray("prop_names");
+        JSONArray values = requestData.optJSONArray("prop_values");
+        JSONArray extraProps = requestData.optJSONArray("extra_props");
+        JSONArray extraValues = requestData.optJSONArray("extra_values");
+        String fakeName = getEntityFakeName(kind, apiKey);
+        List<String> propNames = props.toList();
+        List<String> propValues = values.toList();
+        String [] prop_names = propNames.toArray(new String[props.length()]);
+        String [] prop_values = propValues.toArray(new String[values.length()]);
+        ArrayList<String> allPropNames = new ArrayList(extraProps.toList());
+        allPropNames.addAll(propNames);
+        //add reserved property names
+        allPropNames.add("ID___");
+        allPropNames.add("TIMESTAMP___");
+        ArrayList<Object> allPropValues = new ArrayList(extraValues.toList());
+        allPropValues.addAll(propValues);
+        //add reserved property values
+        allPropValues.add(new UniqueRandom(20).nextMixedRandom());
+        allPropValues.add(System.currentTimeMillis());
+        String[] all_prop_names = allPropNames.toArray(new String[allPropNames.size()]);
+        Object[] all_prop_values = allPropValues.toArray(new Object[allPropValues.size()]);
         
+        boolean exists = Datastore.exists(fakeName,prop_names,prop_values);
+        if (exists) {
+            ArrayList<Filter> filters = new ArrayList<>();
+            for(int x = 0; x < props.length(); x++){
+                Filter filter = new FilterPredicate(props.optString(x), FilterOperator.EQUAL, values.optString(x));
+                filters.add(filter);
+            }
+            Datastore.updateMultipeEntities(fakeName, all_prop_names, all_prop_values,filters.toArray(new Filter[filters.size()]));
+        } else {
+            Datastore.insert(fakeName, all_prop_names, all_prop_values);
+        }
+        serv.messageToClient(worker.setResponseData(Message.SUCCESS));
     }
     
     private String getEntityFakeName(String kind,String apiKey){

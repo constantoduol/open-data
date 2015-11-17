@@ -2,10 +2,12 @@
 package com.quest.opendata;
 
 import com.google.appengine.api.datastore.Entity;
+import com.google.appengine.api.datastore.FetchOptions;
 import com.google.appengine.api.datastore.Query;
 import com.google.appengine.api.datastore.Query.Filter;
 import com.google.appengine.api.datastore.Query.FilterOperator;
 import com.google.appengine.api.datastore.Query.FilterPredicate;
+import com.google.appengine.api.datastore.Query.SortDirection;
 import com.quest.access.common.UniqueRandom;
 import com.quest.access.common.datastore.Datastore;
 import com.quest.access.common.io;
@@ -18,6 +20,10 @@ import com.quest.access.useraccess.services.annotations.Endpoint;
 import com.quest.access.useraccess.services.annotations.WebService;
 import com.quest.servlets.ClientWorker;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.logging.Level;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -244,6 +250,19 @@ public class OpenDataService2 implements Serviceable {
         os.delete(serv, worker);
     }
     
+    @Endpoint(name = "delete_column")
+    public void deleteColumn(Server serv, ClientWorker worker) throws JSONException {
+        JSONObject requestData = worker.getRequestData();
+        String colName = requestData.optString("column_name");
+        String fakeName = requestData.optString("fake_name");
+        Iterable<Entity> all = Datastore.getAllEntities(fakeName);
+        for(Entity en : all){
+            en.removeProperty(colName);
+            Datastore.insert(en);
+        }
+        serv.messageToClient(worker.setResponseData(Message.SUCCESS));
+    }
+    
     @Endpoint(name="save_query")
     public void saveQuery(Server serv, ClientWorker worker){
         JSONObject requestData = worker.getRequestData();
@@ -299,10 +318,61 @@ public class OpenDataService2 implements Serviceable {
             os.multiJoin(serv, worker);
         }
         catch(Exception e){
+            e.printStackTrace();
+            io.log(e, Level.SEVERE, this.getClass());
             worker.setResponseData(Message.FAIL);
             worker.setReason("Invalid join query specified");
             serv.messageToClient(worker);
         }
+    }
+    
+    @Endpoint(name = "tables_and_columns")
+    public void tablesAndColumns(Server serv, ClientWorker worker) throws JSONException {
+        String username = worker.getSession().getAttribute("username").toString();
+        String apiKey = userNameToApiKey(username);
+        Filter filter = new FilterPredicate("API_KEY", FilterOperator.EQUAL, apiKey);
+        Iterable<Entity> all = Datastore.getMultipleEntities("ENTITY_STATS", filter);
+        JSONArray allData = new JSONArray();
+        for(Entity en : all){
+            String fakeName = en.getProperty("ENTITY_NAME_FAKE").toString();
+            String realName = en.getProperty("ENTITY_NAME").toString();
+            JSONObject singleData = new JSONObject();
+            singleData.put("real_name", realName);
+            singleData.put("fake_name", fakeName);
+            ArrayList<String> propNames = Datastore.getEntityPropNames(fakeName);
+            propNames.remove("TIMESTAMP___");
+            propNames.remove("ID___");
+            singleData.put("prop_names", new JSONArray(propNames));
+            allData.put(singleData);
+        }
+        serv.messageToClient(worker.setResponseData(allData));
+    }
+    
+    @Endpoint(name="graph_data")
+    public void graphData(Server serv, ClientWorker worker) throws JSONException{
+        JSONObject requestData = worker.getRequestData();
+        String fakeName1 = requestData.optString("fake_name_1");
+        String fakeName2 = requestData.optString("fake_name_2");
+        String col1 = requestData.optString("col_1");
+        String col2 = requestData.optString("col_2");
+        int limit = requestData.optInt("limit");
+        FetchOptions options = limit == -1 ? FetchOptions.Builder.withDefaults() : FetchOptions.Builder.withLimit(limit);
+        List<Entity> entitiesOne = Datastore.getAllEntitiesAsList(fakeName1,options,"TIMESTAMP___",SortDirection.ASCENDING);
+        List<Entity> entitiesTwo = Datastore.getAllEntitiesAsList(fakeName2,options,"TIMESTAMP___",SortDirection.ASCENDING);
+        int shorterLength = entitiesOne.size() < entitiesTwo.size() ? entitiesOne.size() : entitiesTwo.size();
+        //use the shorter length to iterate
+        JSONArray all = new JSONArray();
+        for(int x = 0; x < shorterLength; x++){
+            Entity en1 = entitiesOne.get(x);
+            Entity en2 = entitiesTwo.get(x);
+            JSONObject obj = new JSONObject();
+            Object value1 = en1.getProperty(col1);
+            Object value2 = en2.getProperty(col2);
+            obj.put(col1, value1);
+            obj.put(col2, value2);
+            all.put(obj);
+        }
+        serv.messageToClient(worker.setResponseData(all));
     }
     
 }

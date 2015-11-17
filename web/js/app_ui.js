@@ -103,5 +103,30 @@ App.prototype.interface = {
                 click: app.newTable
             }
         }
+    },
+    visual : {
+        graph_btn: {
+            type: "button",
+            id: "graph_btn",
+            value: "Graphs",
+            "class": "btn btn-info",
+            style: "margin-top : 20px;margin-left : 10px",
+            events: {
+                click: app.graphInterface
+            }
+        },
+        custom_btn: {
+            type: "<a href='custom.html'>",
+            id: "custom_btn",
+            html: "Custom",
+            "class": "btn btn-info",
+            style: "margin-top : 20px;margin-left : 10px"
+        },
+        hr : {type : "<hr>"},
+        visual_div: {
+            type: "<div>",
+            id: "visual_div",
+            style: "width : 100%; margin-top:10px;font-size: 20px;display:flex"
+        }
     }
 };

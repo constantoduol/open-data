@@ -31,7 +31,17 @@ App.prototype.onload = {
             $("#main_view").removeClass("handsontable");
             app.renderView(app.interface.data, "main_view");
         });
+        
+        $("#visual_menu").click(function () {
+            app.renderView(app.interface.visual, "main_view");
+        });
         app.fetchUserData();
+    },
+    "/custom.html" : function(){
+        var mainHeight = app.getDim()[1] - 20;
+        $(".card").css("height", mainHeight + "px");
+        $("#copy_right").css("left", app.getDim()[0] / 2.5 + "px");
+        app.customInterface();
     }
 };
 
@@ -89,6 +99,7 @@ App.prototype.renderDom = function (obj, toAppend) {
     }
     else {
         elem = $(obj.type);
+        elem.html(obj.html);
     }
     !obj["class"] ? null : elem.addClass(obj["class"]);
     !obj.style ? null : elem.attr("style", obj.style);
@@ -111,7 +122,6 @@ App.prototype.xhr = function(options){
     request.request_header.request_msg = options.msg;
     request.request_header.session_id = localStorage.getItem("ses_id");
     request.request_object = options.data;
-    
     if(options.load){
         if(options.load_area){
             $("#"+options.load_area).html("<img src='img/loader.gif'>");
@@ -593,7 +603,7 @@ App.prototype.loadGrid = function(ids, columns, headers, values,fakeName,realNam
 App.prototype.gridEdit = function (ids, columns, headers, values,fakeName,realName) {
     $("#main_view").html("<div id='state_icon'>"+realName+"</div>\n\
         <textarea cols=1 rows=2 class='form-control' id='search_query' style='margin-bottom:5px' placeholder='e.g name = sam and age = 20'></textarea>\n\
-        <input type='button' class='btn btn-info' value='Search' id='search_button' onclick='app.search(\""+realName+"\",\""+fakeName+"\")' style='margin-bottom:5px;'>\n\
+        <input type='button' class='btn btn-info' value='Run Query' id='search_button' onclick='app.search(\""+realName+"\",\""+fakeName+"\")' style='margin-bottom:5px;'>\n\
         <input type='button' class='btn btn-info' value='Save Query' onclick='app.saveQuery()' style='margin-bottom:5px;'>\n\
         <input type='button' class='btn btn-info' value='Retrieve Query' onclick='app.retrieveQuery()' style='margin-bottom:5px;'>\n\
         <input type='button' class='btn btn-info' value='Visual Query' onclick='app.visualQuery()' style='margin-bottom:5px;'>\n\
@@ -603,7 +613,7 @@ App.prototype.gridEdit = function (ids, columns, headers, values,fakeName,realNa
 
 App.prototype.visualQuery = function(){
     var m = app.ui.modal("<div id='visual_area' style='overflow:auto'></div>", "Visual Query", {
-        okText : "Search",
+        okText : "Run Query",
         cancelText : "Cancel",
         ok : function(){
             app.buildVisualQuery(m);
@@ -727,7 +737,10 @@ App.prototype.buildVisualQuery = function(m){
                 $(jPropValues[y]).focus();
                 return;
             }
-            qString = y === jPropNames.length - 1 ? qString + jPropName + " = " + jPropValue + "" : qString + jPropName + " = " + jPropValue + " and ";
+            qString = y < jPropNames.length || propNames.length > 0
+                ? qString + jPropName + " = " + jPropValue + " and "
+                : qString + jPropName + " = " + jPropValue + "" ;
+                
         }
         for (var x = 0; x < propNames.length; x++) {
             var name = propNames[x].value;
@@ -1010,6 +1023,111 @@ App.prototype.changePassword = function () {
             else {
                 app.msg("The old password specified is invalid");
             }
+        }
+    });
+};
+
+App.prototype.graphInterface = function(){
+    //get all table names and column names
+    app.xhr({
+        data: {},
+        svc: "open_data_2",
+        msg: "tables_and_columns",
+        load: true,
+        success: function (data) {
+            var r = data.response.data;
+            var html = "<select id='table_name_1' class='form-control' style='width: 12%;margin-right:5px'>\n\
+                            <option value=''>Table x</option>\n\
+                        </select>\n\
+                        <select id='col_1' class='form-control' style='width: 12%;margin-right:5px'>\n\
+                            <option value=''>Column x</option>\n\
+                        </select>\n\
+                        <select id='table_name_2' class='form-control' style='width: 12%;margin-right:5px'>\n\
+                            <option value=''>Table y</option>\n\
+                        </select>\n\
+                        <select id='col_2' class='form-control'  style='width: 12%;margin-right:5px'>\n\
+                            <option value=''>Column y</option>\n\
+                        </select>\n\
+                        <input type='text' class='form-control' style='width:10%;height:35px;margin-right: 5px;' id='limit' placeholder='limit e.g 10'>\n\
+                        <input type='button' onclick='app.plotGraph()' value='Render Graph' class='btn btn-info' style='height:35px'>";
+            $("#visual_div").append(html);
+            $("#main_view").append("<hr><div id='graph_area'></div>");
+            $.each(r,function(x){
+                var fakeName = r[x].fake_name;
+                var realName = r[x].real_name;
+                $("#table_name_1").append($("<option value='"+fakeName+"'>"+realName+"</option>"));
+                $("#table_name_2").append($("<option value='"+fakeName+"'>"+realName+"</option>"));
+                function onchange(table,col,colName){
+                    var fake = $("#"+table).val();
+                    for (var z = 0; z < r.length; z++) {
+                        if (r[z].fake_name === fake) {
+                            var props = r[z].prop_names;
+                            $("#"+col).html("<option value=''>"+colName+"</option>");
+                            $.each(props, function (y) {
+                                $("#"+col).append($("<option value='" + props[y] + "'>" + props[y] + "</option>"));
+                            });
+                        }
+                    } 
+                }
+                $("#table_name_2").change(function(){
+                    onchange("table_name_2","col_2","Column y");
+                });
+                 $("#table_name_1").change(function(){
+                    onchange("table_name_1","col_1","Column x");
+                });
+            });
+        }
+    });
+    
+};
+
+
+App.prototype.plotGraph = function(){
+    //get the data
+    var fake1 = $("#table_name_1").val();
+    var fake2 = $("#table_name_2").val();
+    var col1 = $("#col_1").val();
+    var col2 = $("#col_2").val();
+    var limit = $("#limit").val();
+    if(!fake1){
+        app.msg("select table x");
+        return;
+    }
+    if (!fake2) {
+        app.msg("select table y");
+        return;
+    }
+    if (!col1) {
+        app.msg("select column x");
+        return;
+    }
+    if (!col2) {
+        app.msg("select column y");
+        return;
+    }
+    if(!limit){
+        limit = "-1";
+    }
+    var request = {
+        fake_name_1 : fake1,
+        fake_name_2 : fake2,
+        col_1 : col1,
+        col_2 : col2,
+        limit : limit
+    };
+    app.xhr({
+        data: request,
+        svc: "open_data_2",
+        msg: "graph_data",
+        load: true,
+        success: function (data) {
+            var r = data.response.data;
+            $("#graph_area").html("");
+            Morris.Line({
+                element: 'graph_area',
+                parseTime: false,
+                data: r , xkey: col1, ykeys: [col2], labels: ['']
+            });  
         }
     });
 };
