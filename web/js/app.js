@@ -184,6 +184,7 @@ App.prototype.login = function(){
             password : pass
         },
         success : function(data){
+            console.log(data);
             if (data.response.data.response === "loginsuccess") {
                 //get the session id
                 localStorage.setItem("ses_id", data.response.data.rand);
@@ -199,6 +200,9 @@ App.prototype.login = function(){
                    delay : 4000
                 });
             }
+        },
+        error : function(err){
+            console.log(err)
         }
     });
 };
@@ -393,6 +397,7 @@ App.prototype.newTable = function(){
     }
     var cols = $(".col_names");
     var data = {kind : tname};
+    var col_names = [];
     for(var x = 0; x < cols.length; x++){
         var value = cols[x].value;
         if(!value){
@@ -404,13 +409,13 @@ App.prototype.newTable = function(){
             app.msg(value+" is a reserved column name please choose another one");
             return;
         }
-        data[value] = ''; 
+        col_names.push(value);
     }
     if(cols.length === 0 ){
         app.msg("Your table needs at least one column");
         return;  
     }
-    
+    data.col_names = col_names;
     app.xhr({
         load: true,
         svc: "open_data_2",
@@ -440,8 +445,9 @@ App.prototype.explodeTable = function(kind,fakeName){
             kind : kind
         },
         success: function (data) {
-            var r = data.response.data;
-            var data = app.initLoadGrid(r,kind,fakeName);
+            var r = data.response.data.get_data;
+            var colOrder = data.response.data.col_order;
+            var data = app.initLoadGrid(r,kind,fakeName,false,colOrder);
             var headers = data[0];
             var values = data[1];
             app.gridEdit(r.ID___,headers,headers,values,fakeName,kind);
@@ -449,24 +455,32 @@ App.prototype.explodeTable = function(kind,fakeName){
     });
 };
 
-App.prototype.initLoadGrid = function(r,kind,fakeName,joined){
-    var headers = [];
+App.prototype.initLoadGrid = function(r,kind,fakeName,joined,colOrder){
     var values = [];
-    $.each(r, function (col) {
-        if (app.reserved.indexOf(col.toLowerCase()) > -1)
-            return;
-        headers.push(col);
-        values.push(r[col]);
+    var allCols = [];
+    var keys = Object.keys(r);
+    $.each(keys,function(x){
+        if (app.reserved.indexOf(keys[x].toLowerCase()) > -1) return;
+        allCols.push(keys[x]);
     });
+    var columns = !colOrder ? allCols : JSON.parse(colOrder);
+    //append columns that may be missing from this list
+    $.each(allCols, function (x) {
+        if (colOrder && columns.indexOf(allCols[x]) === -1) { //this does not exist in ordered columns
+            columns.push(allCols[x]); //we get ordered columns
+        }
+        values.push(r[columns[x]]);
+    });
+    
     if(!joined){
-        headers.push("Delete Row");
+        columns.push("Delete Row");
         values.push([]);
         $.each(r.ID___, function (index) {
             var id = r.ID___[index];
             values[values.length - 1][index] = "<a href='#' onclick='app.deleteRow(\"" + id + "\",\"" + kind + "\",\"" + fakeName + "\")'>Delete</a>";
         }); 
     }   
-    return [headers,values];
+    return [columns,values];
 };
 
 App.prototype.newGrid = function (options) {
@@ -967,8 +981,9 @@ App.prototype.search = function(kind,fakeName){
         msg: "get",
         load: true,
         success: function (resp) {
-            var r = resp.response.data;
-            var data = app.initLoadGrid(r,kind,fakeName);
+            var r = resp.response.data.get_data;
+            var colOrder = resp.response.data.col_order;
+            var data = app.initLoadGrid(r,kind,fakeName,false,colOrder);
             var headers = data[0];
             var values = data[1];
             $(".handsontable").remove();

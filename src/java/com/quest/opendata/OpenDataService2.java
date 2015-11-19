@@ -160,6 +160,23 @@ public class OpenDataService2 implements Serviceable {
             serv.messageToClient(worker);
             return;//the table already exists
         }
+        //save the ordered column names, there values are blank strings
+        //save the order of columns
+        JSONArray cols = requestData.optJSONArray("col_names");
+        List<String> columns = cols.toList();
+        for(String col : columns){
+            requestData.put(col, "");
+        }
+        requestData.remove("col_names");
+        //create the entity's fake name here
+        String fakeName = new UniqueRandom(20).nextMixedRandom();
+        Entity stats = new Entity("ENTITY_STATS");
+        stats.setProperty("ENTITY_NAME", kind);
+        stats.setProperty("API_KEY", apiKey);
+        stats.setProperty("ENTITY_NAME_FAKE", fakeName);
+        stats.setProperty("COLUMN_ORDER",cols.toString());
+        stats.setProperty("CREATED", System.currentTimeMillis());
+        Datastore.insert(stats);
         requestData.put("api_key", apiKey);
         worker.setRequestData(requestData);
         OpenDataService os = new OpenDataService();
@@ -171,11 +188,21 @@ public class OpenDataService2 implements Serviceable {
         String username = worker.getSession().getAttribute("username").toString();
         String apiKey = userNameToApiKey(username);
         JSONObject requestData = worker.getRequestData();
+        OpenDataService os = new OpenDataService();
         requestData.put("api_key", apiKey);
         requestData.put("filter_meta", false);
+        String kind = requestData.optString("kind");
+        Filter filter1 = new FilterPredicate("API_KEY", FilterOperator.EQUAL, apiKey);
+        Filter filter2 = new FilterPredicate("ENTITY_NAME_FAKE", FilterOperator.EQUAL, os.getEntityFakeName(kind, apiKey));
+        Entity en = Datastore.getSingleEntity("ENTITY_STATS", filter1,filter2);
+        worker.setPropagateResponse(false);
         worker.setRequestData(requestData);
-        OpenDataService os = new OpenDataService();
         os.get(serv, worker);
+        JSONObject resp = new JSONObject();
+        resp.put("col_order", en.getProperty("COLUMN_ORDER"));
+        resp.put("get_data", worker.getResponseData());
+        worker.setPropagateResponse(true);
+        serv.messageToClient(worker.setResponseData(resp));
     }
     
     @Endpoint(name="delete_table")

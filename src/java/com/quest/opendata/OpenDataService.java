@@ -33,6 +33,7 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.TimeZone;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -64,8 +65,11 @@ public class OpenDataService implements Serviceable {
     
     
     public static void main(String [] args){
-       int [] a = new int[]{1,2,3};
-      
+        List list = new ArrayList();
+        list.add("connie");
+        list.add("derrick");
+        JSONArray arr = new JSONArray(list);
+        io.out(arr.toString());
         
     }
 
@@ -153,7 +157,6 @@ public class OpenDataService implements Serviceable {
                 serv.messageToClient(worker);
                 return "";
             }
-
         }
         
         requestData.remove("kind");
@@ -195,20 +198,24 @@ public class OpenDataService implements Serviceable {
      */
     private String resolveMappings(String propValue){
         Date date = new Date();
+        TimeZone timeZone = TimeZone.getTimeZone("Africa/Nairobi");
         if(propValue.equals("timestamp___")){
             Long timestamp = System.currentTimeMillis();
             return timestamp.toString();
         }
         else if(propValue.equals("datetime___")){
             DateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
+            dateFormat.setTimeZone(timeZone);
             return dateFormat.format(date);
         }
         else if(propValue.equals("date___")){
             DateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy");
+            dateFormat.setTimeZone(timeZone);
             return dateFormat.format(date);
         }
         else if(propValue.equals("time___")){
             DateFormat dateFormat = new SimpleDateFormat("HH:mm:ss");
+            dateFormat.setTimeZone(timeZone);
             return dateFormat.format(date);
         }
         return propValue;
@@ -575,7 +582,7 @@ public class OpenDataService implements Serviceable {
         serv.messageToClient(worker.setResponseData(Message.SUCCESS));
     }
     
-    private String getEntityFakeName(String kind,String apiKey){
+    public String getEntityFakeName(String kind,String apiKey){
         Filter filter = new FilterPredicate("API_KEY", FilterOperator.EQUAL, apiKey);
         Filter filter1 = new FilterPredicate("ENTITY_NAME", FilterOperator.EQUAL, kind);
         Entity en = Datastore.getSingleEntity("ENTITY_STATS", filter,filter1);

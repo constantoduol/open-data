@@ -41,7 +41,7 @@ App.prototype.driverSearch = function(){
                 }
                 var r = data.response.data;
                 var blocked = count(r.CATEGORY,"major") > 0 || count(r.CATEGORY,"minor") > 1 ? "Blocked" : "";
-                var blockStatus = "<span style='color:red'>"+blocked+"</span>";
+                var blockStatus = "<div style='color:red'>"+blocked+"</div>";
                 $("#name_area").html(r.FIRST_NAME[0] + " "+r.LAST_NAME[0] + " "+blockStatus);
                 $("#offense_list").html("");
                 app.ui.table({
