@@ -298,6 +298,7 @@ public class OpenDataService implements Serviceable {
         String apiKey = requestData.optString("api_key");
         String fakeEntityName = getEntityFakeName(realEntityName, apiKey);
         String view = requestData.optString("view");
+        int limit = requestData.optInt("limit",-1);
         if (!checkAPIKey(apiKey, worker, serv)) {
             return;
         }
@@ -312,9 +313,9 @@ public class OpenDataService implements Serviceable {
                 filters.add(filter);
             }
         }
-       // Filter filter = new FilterPredicate("API_KEY", FilterOperator.EQUAL, apiKey);
-        //filters.add(filter);
-        List<Entity> multipleEntities = orderOnTimestamp(Datastore.getMultipleEntitiesAsList(fakeEntityName, filters.toArray(new Filter[filters.size()])));
+        FetchOptions options = limit == -1 ? FetchOptions.Builder.withDefaults() : FetchOptions.Builder.withLimit(limit);
+        List<Entity> multipleEntities = orderOnTimestamp(
+                Datastore.getMultipleEntities(fakeEntityName, options, filters.toArray(new Filter[filters.size()])));
         //order on timestamp 
         if(view.equals("html")){
             prettyView(multipleEntities,worker);
