@@ -17,7 +17,7 @@ App.prototype.interface = {
         api_span : {
             type: "<div>",
             id: "api_span",
-            style : "width : 100%; margin-top:10px; height : 30px;font-size: 20px;"
+            style : "width:100%; margin-top:10px; height : 30px;font-size: 20px;"
         },
         create_btn : {
             type: "button",

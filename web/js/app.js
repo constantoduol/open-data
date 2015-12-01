@@ -36,6 +36,7 @@ App.prototype.onload = {
             app.renderView(app.interface.visual, "main_view");
         });
         app.fetchUserData();
+        //custom user interface to be removed
     },
     "/custom.html" : function(){
         var mainHeight = app.getDim()[1] - 20;
@@ -1051,27 +1052,20 @@ App.prototype.graphInterface = function(){
         load: true,
         success: function (data) {
             var r = data.response.data;
-            var html = "<select id='table_name_1' class='form-control' style='width: 12%;margin-right:5px'>\n\
+            var html = "<select id='table_name_1' class='form-control' style='width: 20%;margin-right:5px'>\n\
                             <option value=''>Table x</option>\n\
                         </select>\n\
-                        <select id='col_1' class='form-control' style='width: 12%;margin-right:5px'>\n\
+                        <select id='col_1' class='form-control' style='width: 20%;margin-right:5px'>\n\
                             <option value=''>Column x</option>\n\
                         </select>\n\
-                        <select id='table_name_2' class='form-control' style='width: 12%;margin-right:5px'>\n\
-                            <option value=''>Table y</option>\n\
-                        </select>\n\
-                        <select id='col_2' class='form-control'  style='width: 12%;margin-right:5px'>\n\
-                            <option value=''>Column y</option>\n\
-                        </select>\n\
-                        <input type='text' class='form-control' style='width:10%;height:35px;margin-right: 5px;' id='limit' placeholder='limit e.g 10'>\n\
-                        <input type='button' onclick='app.plotGraph()' value='Render Graph' class='btn btn-info' style='height:35px'>";
-            $("#visual_div").append(html);
+                        <input type='button' class='btn btn-info' value='Y data' style='margin-right:10px' id='y_data_btn'>\n\
+                        <input type='button' class='btn btn-info' value='Retrieve Graphs' style='margin-right:10px' onclick='app.retrieveGraphData()'>";
+            $("#visual_div").html(html);
             $("#main_view").append("<hr><div id='graph_area'></div>");
             $.each(r,function(x){
                 var fakeName = r[x].fake_name;
                 var realName = r[x].real_name;
                 $("#table_name_1").append($("<option value='"+fakeName+"'>"+realName+"</option>"));
-                $("#table_name_2").append($("<option value='"+fakeName+"'>"+realName+"</option>"));
                 function onchange(table,col,colName){
                     var fake = $("#"+table).val();
                     for (var z = 0; z < r.length; z++) {
@@ -1084,51 +1078,177 @@ App.prototype.graphInterface = function(){
                         }
                     } 
                 }
-                $("#table_name_2").change(function(){
-                    onchange("table_name_2","col_2","Column y");
-                });
                  $("#table_name_1").change(function(){
                     onchange("table_name_1","col_1","Column x");
                 });
             });
+           $("#y_data_btn").click(function(){
+               app.ydata(r);
+           });
+        }
+    });
+};
+
+App.prototype.ydata = function(r){
+    var html = "<div style='display:flex'><input type='button' class='btn btn-info' value='Add Y data' id='y_data' style='margin-right:10px'>\n\
+                <input type='button' class='btn btn-info' value='Save Graph' onclick='app.saveGraphConfig()'>\n\
+                <input type='text' class='form-control' style='margin-left: 5px;width:15%' id='limit' placeholder='limit e.g 10'>\n\
+                <input type='text' class='form-control' style='margin-left: 5px;width:35%' id='graph_name' placeholder='graph name'>\n\
+                <select id='order' style='margin-left:5px;width:15%'><option value='forwards'>Forwards</option><option value='backwards'>Backwards</option></select></div>\n\
+                <div id='y_data_area'></div>";
+    var m = app.ui.modal(html,"Y data",{
+        okText : "Render Graph",
+        cancelText : "Cancel",
+        ok : function(){
+            app.plotGraph();
+            m.modal('hide');
         }
     });
     
+    $("#y_data").click(function(){
+        var area = $("#y_data_area");
+        var tableId = app.rand(6);
+        var colId = app.rand(6);
+        var html = "<div style='display:flex;padding-top:5px'><select id='"+tableId+"' class='form-control table_y' style='width: 50%;margin-right:5px'>\n\
+                            <option value=''>Table y</option>\n\
+                     </select>\n\
+                      <select id='"+colId+"' class='form-control col_y' style='width: 50%;margin-right:5px'>\n\
+                            <option value=''>Column y</option>\n\
+                      </select></div>";
+        area.append(html);
+        $.each(r, function (x) {
+            var fakeName = r[x].fake_name;
+            var realName = r[x].real_name;
+            $("#"+tableId).append($("<option value='" + fakeName + "'>" + realName + "</option>"));
+            function onchange(table, col, colName) {
+                var fake = $("#" + table).val();
+                for (var z = 0; z < r.length; z++) {
+                    if (r[z].fake_name === fake) {
+                        var props = r[z].prop_names;
+                        $("#" + col).html("<option value=''>" + colName + "</option>");
+                        $.each(props, function (y) {
+                            $("#" + col).append($("<option value='" + props[y] + "'>" + props[y] + "</option>"));
+                        });
+                    }
+                }
+            }
+            $("#"+tableId).change(function () {
+                onchange(tableId, colId, "Column y");
+            });
+        });
+    });
+    
+    App.prototype.saveGraphConfig = function(){
+        var yfakeNames = $(".table_y");
+        var ycolNames = $(".col_y");
+        var graphName = $("#graph_name").val();
+        var limit = !$("#limit").val() ? "-1" : $("#limit").val();
+        var order = $("#order").val();
+        var fakeNames = [];
+        var colNames = [];
+        $.each(yfakeNames, function (x) {
+            var fakeName = yfakeNames[x].value;
+            var colName = ycolNames[x].value;
+            fakeNames.push(fakeName);
+            colNames.push(colName);
+        });
+        
+        if(fakeNames.length === 0 || !$("#table_name_1").val() || !$("#col_1").val()){
+            alert("Nothing to save!");
+            return;
+        }
+        
+        if(!graphName){
+            alert("Please specify a name for your graph");
+            $("#graph_name").focus();
+            return;
+        }
+        
+        var request = {
+            fake_name_x: $("#table_name_1").val(),
+            fake_names_y: fakeNames,
+            col_x: $("#col_1").val(),
+            cols_y: colNames,
+            limit: limit,
+            graph_name : graphName,
+            order : order
+        };
+        app.xhr({
+            data: request,
+            svc: "open_data_2",
+            msg: "save_graph_data",
+            load: true,
+            success: function (data) {
+                var r = data.response.data;
+                if(r === "success"){
+                    app.msg("Graph saved successfully");
+                }
+            }
+        });
+    };
+    
+    App.prototype.rand = function (len) {
+        var buffer = "";
+        var count = 0;
+        function getRandomDigit() {
+            return Math.floor(10 * Math.random());
+        }
+        function getRandomLetter() {
+            var random = Math.floor(25 * Math.random()) + 97;
+            return String.fromCharCode(random);
+        }
+        while (count < len) {
+            var decision = getRandomDigit();
+            if (decision > 5) {
+                buffer += getRandomDigit();
+                count++;
+            }
+            else {
+                buffer += getRandomLetter();
+                count++;
+            }
+        }
+        return buffer.toString();
+    };
 };
 
 
 App.prototype.plotGraph = function(){
     //get the data
     var fake1 = $("#table_name_1").val();
-    var fake2 = $("#table_name_2").val();
     var col1 = $("#col_1").val();
-    var col2 = $("#col_2").val();
     var limit = $("#limit").val();
+    var order = $("#order").val();
+    console.log(order)
     if(!fake1){
         app.msg("select table x");
-        return;
-    }
-    if (!fake2) {
-        app.msg("select table y");
         return;
     }
     if (!col1) {
         app.msg("select column x");
         return;
     }
-    if (!col2) {
-        app.msg("select column y");
-        return;
-    }
+    
     if(!limit){
         limit = "-1";
     }
+    var yfakeNames = $(".table_y");
+    var ycolNames = $(".col_y");
+    var fakeNames = [];
+    var colNames = [];
+    $.each(yfakeNames,function(x){
+        var fakeName = yfakeNames[x].value;
+        var colName = ycolNames[x].value;
+        fakeNames.push(fakeName);
+        colNames.push(colName);
+    });
     var request = {
-        fake_name_1 : fake1,
-        fake_name_2 : fake2,
-        col_1 : col1,
-        col_2 : col2,
-        limit : limit
+        fake_name_x : fake1,
+        fake_names_y : fakeNames,
+        col_x : col1,
+        cols_y : colNames,
+        limit : limit,
+        order : order
     };
     app.xhr({
         data: request,
@@ -1141,8 +1261,92 @@ App.prototype.plotGraph = function(){
             Morris.Line({
                 element: 'graph_area',
                 parseTime: false,
-                data: r , xkey: col1, ykeys: [col2], labels: ['']
+                data: r , xkey: col1, ykeys: colNames, labels: colNames
             });  
+        }
+    });
+};
+
+App.prototype.retrieveGraphData = function () {
+    app.xhr({
+        data: {},
+        svc: "open_data_2",
+        msg: "retrieve_graph_data",
+        load: true,
+        success: function (resp) {
+            var r = resp.response.data;
+            var m = app.ui.modal("<div id='data_area'></div>", "User Graphs", {
+                cancelText: "Cancel"
+            });
+            var g_name = $.extend(true, [], r.graph_name);
+            app.ui.table({
+                id_to_append: "data_area",
+                headers: ["Graph Name", "Delete"],
+                values: [r.graph_name, r.api_key],
+                include_nums: true,
+                style: "",
+                mobile_collapse: true,
+                transform: {
+                    0: function (value, x) {
+                        var href = $("<a href='#'>" + value + "</a>");
+                        href.click(function () {
+                            var colx = r.col_x[x];
+                            var colNames = JSON.parse(r.col_names_y[x]);
+                            var request = {
+                                fake_name_x: r.fake_name_x[x],
+                                fake_names_y: JSON.parse(r.fake_names_y[x]),
+                                col_x: colx,
+                                cols_y: colNames,
+                                limit: r.limit[x],
+                                order : r.order[x]
+                            };
+                            app.xhr({
+                                data: request,
+                                svc: "open_data_2",
+                                msg: "graph_data",
+                                load: true,
+                                success: function (data) {
+                                    var r = data.response.data;
+                                    $("#graph_area").html("");
+                                    Morris.Line({
+                                        element: 'graph_area',
+                                        parseTime: false,
+                                        data: r, xkey: colx, ykeys: colNames, labels: colNames
+                                    });
+                                }
+                            });
+                            m.modal('hide');
+                        });
+                        return href;
+                    },
+                    1: function (value, index) {
+                        var href = $("<a href='#'>Delete</a>");
+                        href.click(function () {
+                            var gName = g_name[index];
+                            app.deleteGraph(gName);
+                            m.modal('hide');
+                        });
+                        return href;
+                    }
+                }
+            });
+        }
+    });
+};
+
+App.prototype.deleteGraph = function(gName){
+    app.xhr({
+        data: {
+            graph_name : gName
+        },
+        svc: "open_data_2",
+        msg: "delete_graph_data",
+        load: true,
+        success: function (data) {
+            var r = data.response.data;
+            if(r === "success"){
+                app.msg("Graph deleted successfully");
+            }
         }
     });
 };

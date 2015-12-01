@@ -21,8 +21,10 @@ import com.quest.access.useraccess.services.annotations.WebService;
 import com.quest.servlets.ClientWorker;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -376,30 +378,118 @@ public class OpenDataService2 implements Serviceable {
     }
     
     @Endpoint(name="graph_data")
-    public void graphData(Server serv, ClientWorker worker) throws JSONException{
+    public void graphData(Server serv, ClientWorker worker) throws JSONException {
         JSONObject requestData = worker.getRequestData();
-        String fakeName1 = requestData.optString("fake_name_1");
-        String fakeName2 = requestData.optString("fake_name_2");
-        String col1 = requestData.optString("col_1");
-        String col2 = requestData.optString("col_2");
+        String fakeNamex = requestData.optString("fake_name_x");
+        JSONArray fakeNamesY = requestData.optJSONArray("fake_names_y");
+        String colx = requestData.optString("col_x");
+        JSONArray colsY = requestData.optJSONArray("cols_y");
         int limit = requestData.optInt("limit");
+        String order = requestData.optString("order","forwards");
+        SortDirection dir = order.equals("forwards") ? SortDirection.ASCENDING : SortDirection.DESCENDING;
         FetchOptions options = limit == -1 ? FetchOptions.Builder.withDefaults() : FetchOptions.Builder.withLimit(limit);
-        List<Entity> entitiesOne = Datastore.getAllEntitiesAsList(fakeName1,options,"TIMESTAMP___",SortDirection.ASCENDING);
-        List<Entity> entitiesTwo = Datastore.getAllEntitiesAsList(fakeName2,options,"TIMESTAMP___",SortDirection.ASCENDING);
-        int shorterLength = entitiesOne.size() < entitiesTwo.size() ? entitiesOne.size() : entitiesTwo.size();
-        //use the shorter length to iterate
+        List<Entity> entitiesOne = Datastore.getAllEntitiesAsList(fakeNamex,options,"TIMESTAMP___",dir);
+        ArrayList<List<Entity>> ydata = new ArrayList();
+        for(int x = 0; x < fakeNamesY.length(); x++){
+            String fakeName = fakeNamesY.optString(x);
+            List<Entity> entitiesTwo = Datastore.getAllEntitiesAsList(fakeName, options, "TIMESTAMP___",dir);
+            ydata.add(entitiesTwo);
+        }
+        
         JSONArray all = new JSONArray();
-        for(int x = 0; x < shorterLength; x++){
+        for(int x = 0; x < entitiesOne.size(); x++){
             Entity en1 = entitiesOne.get(x);
-            Entity en2 = entitiesTwo.get(x);
             JSONObject obj = new JSONObject();
-            Object value1 = en1.getProperty(col1);
-            Object value2 = en2.getProperty(col2);
-            obj.put(col1, value1);
-            obj.put(col2, value2);
+            Object valuex = en1.getProperty(colx);
+            obj.put(colx, valuex);
+            for(int y = 0; y < ydata.size(); y++){
+                String colY = colsY.optString(y);
+                Entity en = ydata.get(y).get(x);
+                obj.put(colY, en.getProperty(colY));
+            }
             all.put(obj);
         }
         serv.messageToClient(worker.setResponseData(all));
     }
     
+    @Endpoint(name="save_graph_data")
+    public void saveGraphData(Server serv, ClientWorker worker){
+        JSONObject requestData = worker.getRequestData();
+        String username = worker.getSession().getAttribute("username").toString();
+        String apiKey = userNameToApiKey(username);
+        String fakeNameX = requestData.optString("fake_name_x");
+        int limit = requestData.optInt("limit");
+        String order = requestData.optString("order");
+        String colX = requestData.optString("col_x");
+        String name = requestData.optString("graph_name");
+        JSONArray fakeNamesY = requestData.optJSONArray("fake_names_y");
+        JSONArray colNamesY = requestData.optJSONArray("cols_y");
+        boolean exists = Datastore.exists("GRAPH_DATA",new String[]{"graph_name"}, new String[]{name});
+        if(exists){
+            worker.setReason("Graph specified already exists");
+            worker.setResponseData(Message.FAIL);
+            serv.messageToClient(worker);
+            return;
+        }
+        Entity en = new Entity("GRAPH_DATA");
+        en.setProperty("limit", limit);
+        en.setProperty("col_x", colX);
+        en.setProperty("fake_name_x", fakeNameX);
+        en.setProperty("fake_names_y", fakeNamesY.toString());
+        en.setProperty("col_names_y", colNamesY.toString());
+        en.setProperty("api_key", apiKey);
+        en.setProperty("graph_name", name);
+        en.setProperty("order", order);
+        en.setProperty("timestamp", System.currentTimeMillis());
+        Datastore.insert(en);
+        serv.messageToClient(worker.setResponseData(Message.SUCCESS));
+    }
+    
+    @Endpoint(name="retrieve_graph_data")
+    public void retrieveGraphData(Server serv, ClientWorker worker){
+        String username = worker.getSession().getAttribute("username").toString();
+        String apiKey = userNameToApiKey(username);
+        Filter filter = new FilterPredicate("api_key", FilterOperator.EQUAL, apiKey);
+        JSONObject json = Datastore.entityToJSON(
+                Datastore.getMultipleEntities("GRAPH_DATA","timestamp", SortDirection.ASCENDING, filter));
+        serv.messageToClient(worker.setResponseData(json));
+    }
+    
+    @Endpoint(name="delete_graph_data")
+    public void deleteGraphData(Server serv, ClientWorker worker){
+        JSONObject requestData = worker.getRequestData();
+        String username = worker.getSession().getAttribute("username").toString();
+        String graphName = requestData.optString("graph_name");
+        String apiKey = userNameToApiKey(username);
+        Filter filter = new FilterPredicate("api_key", FilterOperator.EQUAL, apiKey);
+        Filter filter1 = new FilterPredicate("graph_name", FilterOperator.EQUAL, graphName);
+        Datastore.deleteSingleEntity("GRAPH_DATA", filter,filter1);
+        serv.messageToClient(worker.setResponseData(Message.SUCCESS));
+    }
+    
+    @Endpoint(name="entity_get")
+    public void entityGet(Server serv, ClientWorker worker) throws JSONException{
+        JSONObject requestData = worker.getRequestData();
+        JSONArray entities = requestData.optJSONArray("entities");
+        JSONArray limits = requestData.optJSONArray("limits");
+        String username = worker.getSession().getAttribute("username").toString();
+        String apiKey = userNameToApiKey(username);
+        OpenDataService os = new OpenDataService();
+        JSONObject data = new JSONObject();
+        for(int x = 0; x < entities.length(); x++){
+            String realName = entities.optString(x);
+            int limit = limits.optInt(x);
+            String fakeName = os.getEntityFakeName(realName, apiKey);
+            FetchOptions options = limit == -1 ? FetchOptions.Builder.withDefaults() : FetchOptions.Builder.withLimit(limit); 
+            JSONObject json = Datastore.entityToJSON(Datastore.getMultipleEntities(fakeName, options, new Filter[]{}));
+            data.put(realName, json);
+        }
+        serv.messageToClient(worker.setResponseData(data));
+    }
+    
+    
+    public static void main(String [] args){
+        String [] a = null;
+        io.out(Arrays.toString(a));
+    }
 }

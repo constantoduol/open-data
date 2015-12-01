@@ -7,7 +7,6 @@ package com.quest.opendata;
 
 import com.google.appengine.api.datastore.Entity;
 import com.google.appengine.api.datastore.FetchOptions;
-import com.google.appengine.api.datastore.Query;
 import com.google.appengine.api.datastore.Query.Filter;
 import com.google.appengine.api.datastore.Query.FilterOperator;
 import com.google.appengine.api.datastore.Query.FilterPredicate;
@@ -25,8 +24,6 @@ import java.io.IOException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Calendar;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
@@ -299,6 +296,7 @@ public class OpenDataService implements Serviceable {
         String fakeEntityName = getEntityFakeName(realEntityName, apiKey);
         String view = requestData.optString("view");
         int limit = requestData.optInt("limit",-1);
+        String order = requestData.optString("order","asc");
         if (!checkAPIKey(apiKey, worker, serv)) {
             return;
         }
@@ -313,9 +311,14 @@ public class OpenDataService implements Serviceable {
                 filters.add(filter);
             }
         }
-        FetchOptions options = limit == -1 ? FetchOptions.Builder.withDefaults() : FetchOptions.Builder.withLimit(limit);
+        //FetchOptions options = limit == -1 ? FetchOptions.Builder.withDefaults() : FetchOptions.Builder.withLimit(limit);
+        //SortDirection dir = order.equals("asc") ? SortDirection.ASCENDING : SortDirection.DESCENDING;
         List<Entity> multipleEntities = orderOnTimestamp(
-                Datastore.getMultipleEntities(fakeEntityName, options, filters.toArray(new Filter[filters.size()])));
+                Datastore.getMultipleEntitiesAsList(fakeEntityName, filters.toArray(new Filter[filters.size()])),order);
+        if(limit > 0)
+            multipleEntities = multipleEntities.subList(0, limit);
+        //List<Entity> multipleEntities = Datastore.getMultipleEntities(fakeEntityName, "TIMESTAMP___", dir, options, filters.toArray(new Filter[filters.size()]));
+        //SELECT * FROM ENTITY WHERE FILTER1 = PROP1 AND FILTER2 = PROP2 ORDER BY TIMESTAMP___ DESC LIMIT 100
         //order on timestamp 
         if(view.equals("html")){
             prettyView(multipleEntities,worker);
@@ -331,13 +334,18 @@ public class OpenDataService implements Serviceable {
         serv.messageToClient(worker);
     }
     
-    private List<Entity> orderOnTimestamp(List<Entity> multipleEntities){
+    private List<Entity> orderOnTimestamp(List<Entity> multipleEntities,final String order) {
         Comparator<Entity> compare = new Comparator<Entity>() {
             @Override
             public int compare(Entity en1, Entity en2) {
-                Long timestamp1 = (Long)en1.getProperty("TIMESTAMP___");
-                Long timestamp2 = (Long)en2.getProperty("TIMESTAMP___");
-                return timestamp1.intValue() - timestamp2.intValue();
+                Long timestamp1 = (Long) en1.getProperty("TIMESTAMP___");
+                Long timestamp2 = (Long) en2.getProperty("TIMESTAMP___");
+                if(order.equals("asc")){
+                    return timestamp1.intValue() - timestamp2.intValue();   
+                }
+                else {
+                    return timestamp2.intValue() - timestamp1.intValue();
+                }
             }
         };
         Collections.sort(multipleEntities, compare);
@@ -487,7 +495,7 @@ public class OpenDataService implements Serviceable {
         //SortDirection [] sDirs = dirs.toArray(new SortDirection[dirs.size()]);
        
         String [] jProps = joinProps.toArray(new String[joinProps.size()]);
-        JSONObject json = Datastore.entityToJSON(orderOnTimestamp(Datastore.multiJoin(entityNames, jProps, null,null, filters)));
+        JSONObject json = Datastore.entityToJSON(Datastore.multiJoin(entityNames, jProps, null,null, filters));
         serv.messageToClient(worker.setResponseData(json));
     }
     
@@ -591,6 +599,38 @@ public class OpenDataService implements Serviceable {
             return en.getProperty("ENTITY_NAME_FAKE").toString();
         }
         return "";
+    }
+    
+    @Endpoint(name = "auto_complete")
+    public void autoComplete(Server serv, ClientWorker worker) {
+        try {
+            JSONObject requestData = worker.getRequestData();
+            String entity = requestData.optString("entity");
+            int limit = requestData.optInt("limit", 100);
+            JSONArray whereCols = requestData.optJSONArray("where_cols");
+            JSONArray whereValues = requestData.optJSONArray("where_values");
+            JSONArray whereOps = requestData.optJSONArray("where_operators");
+            String apiKey = requestData.optString("api_key");
+            if (!checkAPIKey(apiKey, worker, serv)) {
+                return;
+            }
+            String fakeName = getEntityFakeName(entity, apiKey);
+            ArrayList<Filter> aFilters = new ArrayList<>();
+            for (int x = 0; x < whereCols.length(); x++) {
+                String col = whereCols.optString(x);
+                String value = whereValues.optString(x);
+                String operator = whereOps.optString(x);
+                Filter filter = new FilterPredicate(col, Datastore.getFilterOperator(operator), value);
+                aFilters.add(filter);
+            }
+            Filter[] filters = new Filter[aFilters.size()];
+            filters = aFilters.toArray(filters);
+            JSONObject data = Datastore.entityToJSON(Datastore.getMultipleEntities(fakeName, FetchOptions.Builder.withLimit(limit), filters));
+            serv.messageToClient(worker.setResponseData(data));
+        } catch (Exception ex) {
+            worker.setResponseData("FAIL");
+            serv.messageToClient(worker);
+        }
     }
     
 }

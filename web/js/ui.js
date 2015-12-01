@@ -149,7 +149,7 @@ UI.prototype.table = function (options) {
             //here we do transformations
             if(options.transform && options.transform[y]){
                 //we have a transform function here so deal with it
-                options.values[y][x] = options.transform[y](options.values[y][x],x);
+                options.values[y][x] = options.transform[y](options.values[y][x],x,td);
             }
             
             
